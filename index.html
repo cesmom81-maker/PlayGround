@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Mendsway Tech — Repair Shop Inventory</title>
+<meta name="description" content="Mendsway Tech inventory app: customer intakes, phone photos, and Google backup." />
+<meta name="theme-color" content="#0b1e3a" />
+<link rel="manifest" href="./manifest.webmanifest" />
+<link rel="icon" type="image/svg+xml" href="./icon.svg" />
+<link rel="apple-touch-icon" href="./icon-192.png" />
+<link rel="stylesheet" href="./styles.css" />
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js" async defer></script>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">M</div>
+      <div>
+        <h1>Mendsway Tech</h1>
+        <p>Repair Shop Inventory</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <div id="backupDot" class="backup-dot" title="Backup status"><span></span><em id="backupDotText">Local only</em></div>
+      <button id="installBtn" class="btn ghost" hidden>⬇ Install app</button>
+      <button id="backupBtn" class="btn primary">☁ Backup / Sync</button>
+      <button id="addBtn" class="btn accent">+ New intake</button>
+    </div>
+  </header>
+
+  <section class="stats" id="stats">
+    <div class="stat"><span class="stat-num" id="stTotal">0</span><span class="stat-label">Total jobs</span></div>
+    <div class="stat warn"><span class="stat-num" id="stInShop">0</span><span class="stat-label">In shop</span></div>
+    <div class="stat ok"><span class="stat-num" id="stReady">0</span><span class="stat-label">Ready for pickup</span></div>
+    <div class="stat"><span class="stat-num" id="stCollected">0</span><span class="stat-label">Collected</span></div>
+    <div class="stat money"><span class="stat-num" id="stRevenue">£0</span><span class="stat-label">Repair value</span></div>
+  </section>
+
+  <section class="toolbar">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input id="search" type="search" placeholder="Search name, contact, model, IMEI, issue…" autocomplete="off" />
+    </div>
+    <select id="statusFilter" aria-label="Filter by status">
+      <option value="">All statuses</option>
+      <option>Received</option>
+      <option>In Repair</option>
+      <option>Waiting Parts</option>
+      <option>Ready</option>
+      <option>Collected</option>
+      <option>Cancelled</option>
+    </select>
+    <select id="sortBy" aria-label="Sort">
+      <option value="newest">Newest first</option>
+      <option value="oldest">Oldest first</option>
+      <option value="name">Customer A–Z</option>
+      <option value="status">Status</option>
+    </select>
+    <button id="exportCsvQuick" class="btn small">CSV</button>
+    <button id="printQuick" class="btn small">🖨 Print</button>
+  </section>
+
+  <main>
+    <div id="emptyState" class="empty" hidden>
+      <div class="empty-art">📱🔧</div>
+      <h2>No jobs yet</h2>
+      <p>Tap <strong>“+ New intake”</strong> when a customer brings a phone in.<br/>Add their name, contact, take a photo of the phone, and it saves on this device.</p>
+      <button class="btn accent" id="emptyAdd">+ Add first intake</button>
+    </div>
+    <div id="cards" class="cards"></div>
+    <div class="table-wrap">
+      <table id="grid">
+        <thead>
+          <tr>
+            <th>Photo</th>
+            <th>Customer name</th>
+            <th>Contact</th>
+            <th>Device</th>
+            <th>Issue</th>
+            <th>Status</th>
+            <th>Dates</th>
+            <th>Fee</th>
+            <th><span class="sr">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <span>Mendsway Tech • data stays on this device until you back it up • Backup account: <strong>cesmom81@googlemail.com</strong></span>
+    <span id="storeInfo">IndexedDB • offline-ready PWA</span>
+  </footer>
+</div>
+
+<!-- Intake modal -->
+<div id="intakeModal" class="overlay" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="Customer intake">
+    <div class="sheet-head">
+      <h2 id="formTitle">New intake</h2>
+      <button class="icon-btn" data-close>✕</button>
+    </div>
+    <form id="intakeForm" autocomplete="off">
+      <input type="hidden" id="fId" />
+      <div class="grid2">
+        <label>Customer name *
+          <input id="fName" required placeholder="e.g. Jane Smith" maxlength="80" />
+        </label>
+        <label>Contact (phone) *
+          <input id="fPhone" required inputmode="tel" placeholder="e.g. 07700 900123" maxlength="40" />
+        </label>
+      </div>
+      <div class="grid2">
+        <label>Contact email / alt
+          <input id="fEmail" inputmode="email" placeholder="optional" maxlength="80" />
+        </label>
+        <label>Status
+          <select id="fStatus">
+            <option>Received</option>
+            <option>In Repair</option>
+            <option>Waiting Parts</option>
+            <option>Ready</option>
+            <option>Collected</option>
+            <option>Cancelled</option>
+          </select>
+        </label>
+      </div>
+      <div class="grid3">
+        <label>Brand
+          <input id="fBrand" placeholder="Apple / Samsung…" list="brandList" maxlength="40" />
+          <datalist id="brandList">
+            <option>Apple</option><option>Samsung</option><option>Google</option>
+            <option>Xiaomi</option><option>Motorola</option><option>Nothing</option>
+            <option>OnePlus</option><option>Huawei</option><option>Oppo</option>
+          </datalist>
+        </label>
+        <label>Model
+          <input id="fModel" placeholder="e.g. iPhone 13" maxlength="60" />
+        </label>
+        <label>Colour
+          <input id="fColor" placeholder="e.g. Midnight" maxlength="30" />
+        </label>
+      </div>
+      <div class="grid2">
+        <label>IMEI / Serial
+          <input id="fImei" placeholder="optional" maxlength="40" />
+        </label>
+        <label>Passcode / Pattern <span class="hint">(ask customer)</span>
+          <input id="fPass" placeholder="optional" maxlength="40" />
+        </label>
+      </div>
+      <label>Fault / issue reported *
+        <textarea id="fIssue" required rows="2" placeholder="e.g. Cracked screen, battery drains fast…" maxlength="500"></textarea>
+      </label>
+      <div class="grid3">
+        <label>Date in
+          <input id="fDateIn" type="date" />
+        </label>
+        <label>Est. pickup / out
+          <input id="fDateOut" type="date" />
+        </label>
+        <label>Repair fee (£)
+          <input id="fFee" type="number" min="0" step="0.01" placeholder="0.00" />
+        </label>
+      </div>
+      <div class="grid2">
+        <label>Deposit taken (£)
+          <input id="fDeposit" type="number" min="0" step="0.01" placeholder="0.00" />
+        </label>
+        <label>Accessories left with phone
+          <input id="fAcc" placeholder="e.g. case, charger — or none" maxlength="120" />
+        </label>
+      </div>
+      <label>Shop notes
+        <textarea id="fNotes" rows="2" placeholder="scratches, condition on arrival, customer instructions…" maxlength="800"></textarea>
+      </label>
+
+      <fieldset class="photos">
+        <legend>📷 Phone photo — take &amp; attach (saved with this job)</legend>
+        <div class="photo-actions">
+          <label class="btn small camera">📸 Take photo
+            <input id="fileCamera" type="file" accept="image/*" capture="environment" hidden />
+          </label>
+          <label class="btn small">🖼 Upload image
+            <input id="fileUpload" type="file" accept="image/*" multiple hidden />
+          </label>
+          <button type="button" id="liveCamBtn" class="btn small">🎥 Use live camera</button>
+        </div>
+        <div id="liveCamWrap" hidden>
+          <video id="liveCam" playsinline muted></video>
+          <div class="photo-actions">
+            <button type="button" id="snapBtn" class="btn small primary">Capture frame</button>
+            <button type="button" id="stopCamBtn" class="btn small ghost">Stop camera</button>
+          </div>
+        </div>
+        <div id="photoPrev" class="photo-prev"></div>
+        <p class="muted">Photos are compressed on-device and stored with the record, so they back up together with the inventory.</p>
+      </fieldset>
+
+      <div class="form-foot">
+        <button type="button" class="btn ghost" data-close>Cancel</button>
+        <button type="submit" class="btn accent">💾 Save intake</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Detail modal -->
+<div id="detailModal" class="overlay" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="Job details">
+    <div class="sheet-head">
+      <h2 id="dTitle">Job</h2>
+      <button class="icon-btn" data-close>✕</button>
+    </div>
+    <div id="dBody" class="detail"></div>
+    <div class="form-foot">
+      <button class="btn danger-ghost" id="dDelete">Delete</button>
+      <span class="spacer"></span>
+      <button class="btn ghost" id="dPrint">🖨 Receipt</button>
+      <button class="btn primary" id="dEdit">Edit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Backup modal -->
+<div id="backupModal" class="overlay" hidden>
+  <div class="sheet wide" role="dialog" aria-modal="true" aria-label="Backup and sync">
+    <div class="sheet-head">
+      <h2>☁ Backup &amp; access on another device</h2>
+      <button class="icon-btn" data-close>✕</button>
+    </div>
+    <div class="backup-grid">
+      <div class="b-card highlight">
+        <h3>Linked Google backup account</h3>
+        <p class="big-email">cesmom81@googlemail.com</p>
+        <p class="muted">All backups made from this app are addressed to / owned by this email so you can sign in on another device and restore them.</p>
+        <div class="row">
+          <a class="btn small primary" target="_blank" rel="noopener" href="https://drive.google.com/">Open Google Drive</a>
+          <a class="btn small" id="gmailBackupLink" href="mailto:cesmom81@googlemail.com?subject=Mendsway%20Tech%20inventory%20backup&body=Attach%20your%20exported%20backup%20file%20to%20this%20email.%20On%20the%20new%20device%2C%20open%20this%20email%20and%20import%20the%20file%20in%20the%20app%20under%20Backup%20%E2%86%92%20Import.">✉ Email backup to this address</a>
+        </div>
+      </div>
+
+      <div class="b-card">
+        <h3>1 · File backup (works today, no setup)</h3>
+        <p class="muted">Download one file containing everything including photos. Move it via email / WhatsApp / USB, then <strong>Import</strong> it in the app on the other device.</p>
+        <div class="row">
+          <button class="btn small primary" id="exportJson">⬇ Export backup file</button>
+          <label class="btn small">⬆ Import backup file<input id="importJson" type="file" accept="application/json,.json" hidden /></label>
+        </div>
+        <div class="row">
+          <button class="btn small" id="emailExportBtn">✉ Export + open email</button>
+          <button class="btn small" id="exportCsv">CSV (spreadsheet)</button>
+        </div>
+        <p class="muted" id="backupMeta">No backup made yet on this device.</p>
+      </div>
+
+      <div class="b-card">
+        <h3>2 · Automatic Google Drive sync (recommended)</h3>
+        <p class="muted">Sign in with the Google account above and the app saves/loads <code>mendsway-tech-backup.json</code> directly in your Drive. Same file on every device.</p>
+        <label>Google OAuth Client ID (one-time setup)
+          <input id="gClientId" placeholder="paste Client ID from Google Cloud Console" />
+        </label>
+        <details class="help">
+          <summary>How do I get a Client ID? (2 min, free)</summary>
+          <ol>
+            <li>Go to <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">console.cloud.google.com</a> → create/select a project.</li>
+            <li><strong>APIs &amp; Services → Library</strong>: enable <strong>Google Drive API</strong>.</li>
+            <li><strong>APIs &amp; Services → Credentials → Create Credentials → OAuth client ID</strong> → type <strong>Web application</strong>.</li>
+            <li>Under <strong>Authorised JavaScript origins</strong> add this app's URL (and <code>http://localhost:3000</code> for testing).</li>
+            <li>Copy the Client ID and paste it above → <strong>Save</strong>.</li>
+          </ol>
+        </details>
+        <div class="row">
+          <button class="btn small" id="saveClientId">Save ID</button>
+          <button class="btn small primary" id="gSignIn">Sign in with Google</button>
+          <button class="btn small ghost" id="gSignOut" hidden>Sign out</button>
+        </div>
+        <p class="muted" id="gStatus">Not signed in.</p>
+        <div class="row">
+          <button class="btn small primary" id="driveUp" disabled>⇪ Save to Drive now</button>
+          <button class="btn small" id="driveDown" disabled>⇩ Restore from Drive</button>
+        </div>
+        <label class="check"><input type="checkbox" id="autoBackup" /> Auto-save to Drive after every change (when signed in)</label>
+      </div>
+    </div>
+    <div class="form-foot">
+      <button class="btn ghost" data-close>Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+</div>
+<script src="./app.js"></script>
+</body>
+</html>
