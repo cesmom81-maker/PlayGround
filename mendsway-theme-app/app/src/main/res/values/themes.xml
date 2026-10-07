@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base launcher theme. Compose takes over after SplashScreen. -->
+    <style name="Theme.MendsWay" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_brand_splash</item>
+        <item name="windowSplashScreenAnimationDuration">800</item>
+        <item name="postSplashScreenTheme">@style/Theme.MendsWay.PostSplash</item>
+    </style>
+
+    <style name="Theme.MendsWay.PostSplash" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- Android 15/16/17: enforce edge-to-edge -->
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">false</item>
+    </style>
+</resources>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand: ivory paper + ink black sampled from attached logo -->
+    <color name="brand_ivory">#FEF9EE</color>
+    <color name="brand_ivory_surface">#FFFEFA</color>
+    <color name="brand_ink">#141414</color>
+    <color name="brand_taupe">#6B6257</color>
+    <color name="brand_gold">#C9A86A</color>
+    <color name="brand_sand">#EDE5D3</color>
+    <color name="brand_line">#CFC5B0</color>
+
+    <color name="ic_launcher_background">#FEF9EE</color>
+
+    <!-- Splash -->
+    <color name="splash_background">#FEF9EE</color>
+</resources>
